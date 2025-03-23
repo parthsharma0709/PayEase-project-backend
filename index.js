@@ -5,16 +5,21 @@ const {z}=require("zod");
 const cors= require("cors");
 const bcrypt=require("bcrypt");
 const jwt= require("jsonwebtoken")
-const { userModel } = require("./db");
+const { userModel, acountModel } = require("./db");
 app.use(express.json());
 const URL= "mongodb+srv://05sharmaparth:wo169YrK6CdxJN33@cluster0.99okb.mongodb.net/Paytm-project";
 const JWT_SECRET= require("./config");
+
+const userAuthentication= require("./auth/usermiddleware.js")
 
 mongoose.connect(URL)
 .then(()=>{console.log("mongodb connected")})
 .catch((e)=>console.error("database connection error" , e))
 
 const usernameSchema=z.string().min(3,"username must have at least 3 characters").max(20);
+const FirstNameSchema=z.string().min(3,"firstname must contain at least 3 characters").max(20);
+const LastNameSchema= z.string().min(3,"lasttname must contain at least 3 characters").max(20);
+
 
 const passwordSchema=z.string().min(8).max(20)
 .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
@@ -22,9 +27,18 @@ const passwordSchema=z.string().min(8).max(20)
 .regex(/[0-9]/, "Password must contain at least one number")
 .regex(/[^A-Za-z0-9]/, "Password must contain at least one special character");
 
+const updatedBodySchema= z.object({
+    username:usernameSchema.optional(),
+    password:passwordSchema.optional(),
+    FirstName:FirstNameSchema.optional(),
+    LastName:LastNameSchema.optional()
+})
+
 const signupSchema= z.object({
     username:usernameSchema,
-    password:passwordSchema
+    password:passwordSchema,
+    FirstName:FirstNameSchema,
+    LastName:LastNameSchema
 })
 
 const signinSchema= z.object({
@@ -52,7 +66,10 @@ app.post('/api/v1/signup', async (req, res)=>{
 
    await userModel.create({
     username:validateData.data.username,
+    FirstName:validateData.data.FirstName,
+    LastName:validateData.data.LastName,
     password:hashedpassword
+
    })
 
    res.status(201).json({
@@ -81,16 +98,85 @@ app.post('/api/v1/signin' , async (req,res)=>{
     }
 
     const token= jwt.sign({userId:user._id}, JWT_SECRET, {expiresIn:"1h"})
+    await acountModel.create({
+        userId:user._id,
+        balance: 1000
+    })
+
     res.status(200).json({
         message:"signed in suessfully",
         token:token
     })
+})
 
+app.put('/api/v1/user/updateUser',userAuthentication, async  (req,res)=>{
+   
+    const updatedBody= updatedBodySchema.safeParse(req.body);
 
-
-
+    if(!updatedBody.success){
+        res.status(411).json({
+            message:"enter right credintials to update "
+        })
+        return;
+    }
+    const updatedHashedpassword= await hashpassword(updatedBody.data.password);
+ try {
+    const updatedData= await userModel.updateOne({ _id: req.userId}, { 
+        $set: { 
+            username: updatedBody.data.username,
+            password: updatedHashedpassword,
+            FirstName: updatedBody.data.FirstName,
+            LastName: updatedBody.data.LastName
+        } 
+    })
+    res.json({
+        message:"user data updated successfully",
+        data:updatedData
+    })
+ }
+ catch(error){
+    req.json({"message":"problem while updating data"})
+ }
 
 })
+
+app.get('/api/v1/user/bulkUsers',  async (req,res)=>{
+    const filter= req.query.filter || " " ;
+    const users= await userModel.find({
+        $or:[
+            {FirstName :{'$regex':filter, '$options': 'i'}},
+            {LastName:{'$regex':filter,'$options': 'i'}}
+        ]
+    })
+
+    res.json({
+        message:"here are your users" ,
+        data:users.map(user =>({
+            username:user.username,
+            FirstName:user.FirstName,
+            LastName:user.LastName,
+        }))
+    })
+})
+
+app.get('/api/v1/user/getBalance', userAuthentication, async (req, res)=>{
+    const userId= req.userId;
+   try{
+    const account= await acountModel.findOne({userId:userId}); 
+    res.json({
+        message: `your account balance is ${account.balance} rupees`
+       
+    })
+         }
+    catch(error){
+        res.status(403).json({
+            message:"unable to load balanace , please try again later"
+        })
+    }
+
+})
+
+app.post('/api/v1/')
 
 
 

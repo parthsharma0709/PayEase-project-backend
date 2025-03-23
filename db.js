@@ -1,5 +1,6 @@
 
-const mongoose= require("mongoose")
+const mongoose= require("mongoose");
+
 const Schema=mongoose.Schema;
 const ObjectId=mongoose.ObjectId;
 
@@ -23,9 +24,27 @@ const userSchema= new mongoose.Schema({
     }
 })
 
-const userModel= new mongoose.model("User",userSchema)
+
+
+const userModel= new mongoose.model("User",userSchema);
+
+const accountSchema= new mongoose.Schema({
+    userId :{
+        type:mongoose.Schema.Types.ObjectId,
+        ref:'User',
+        required:true
+    },
+    balance:{
+        type:Number,
+        required:true
+    }
+
+})
+
+const acountModel= new mongoose.model('Account',accountSchema);
 
 module.exports={
-    userModel
+    userModel,
+    acountModel
 
 }
