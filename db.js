@@ -1,5 +1,6 @@
 
 const mongoose= require("mongoose");
+const { string } = require("zod");
 
 const Schema=mongoose.Schema;
 const ObjectId=mongoose.ObjectId;
@@ -8,15 +9,18 @@ const userSchema= new mongoose.Schema({
     username : {
         type:   String,
         unique:true,
-        required:true
+        required:true,
+        trim:true
     },
     FirstName :{
         type:String,
-        required:true
+        required:true,
+        trim:true
     },
     LastName:{
         type:String,
-        require:true
+        require:true,
+        trim:true
     },
     password:{
         type:String,
@@ -36,7 +40,15 @@ const accountSchema= new mongoose.Schema({
     },
     balance:{
         type:Number,
-        required:true
+        required:true,
+        trim:true
+    },
+    username:{
+        type:String,
+        required:true,
+        trim:true,
+        unique:true,
+        ref:'User'
     }
 
 })

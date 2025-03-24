@@ -7,10 +7,9 @@ const bcrypt=require("bcrypt");
 const jwt= require("jsonwebtoken")
 const { userModel, acountModel } = require("./db");
 app.use(express.json());
-const URL= "mongodb+srv://05sharmaparth:wo169YrK6CdxJN33@cluster0.99okb.mongodb.net/Paytm-project";
 const JWT_SECRET= require("./config");
-
-const userAuthentication= require("./auth/usermiddleware.js")
+const userAuthentication= require("./auth/usermiddleware.js");
+const URL= "mongodb+srv://05sharmaparth:wo169YrK6CdxJN33@cluster0.99okb.mongodb.net/Paytm-project";
 
 mongoose.connect(URL)
 .then(()=>{console.log("mongodb connected")})
@@ -97,10 +96,13 @@ app.post('/api/v1/signin' , async (req,res)=>{
         return ;
     }
 
-    const token= jwt.sign({userId:user._id}, JWT_SECRET, {expiresIn:"1h"})
+    const token= jwt.sign({userId:user._id}, JWT_SECRET, {expiresIn:"1h"});
+    
     await acountModel.create({
         userId:user._id,
-        balance: 1000
+        username:validateData.data.username,
+        balance: 1000,
+        
     })
 
     res.status(200).json({
@@ -130,7 +132,7 @@ app.put('/api/v1/user/updateUser',userAuthentication, async  (req,res)=>{
         } 
     })
     res.json({
-        message:"user data updated successfully",
+        message:"user's data has been updated successfully",
         data:updatedData
     })
  }
@@ -176,7 +178,43 @@ app.get('/api/v1/user/getBalance', userAuthentication, async (req, res)=>{
 
 })
 
-app.post('/api/v1/')
+app.post('/api/v1/user/moneyTransfer', userAuthentication, async (req,res)=>{
+    //create a session
+    const session = await mongoose.startSession();
+    // start a transaction
+    session.startTransaction();
+
+    const {amount , toId } =req.body;
+
+    const sender = await acountModel.findOne({userId:req.userId}).session(session);
+    if(!sender || (sender.balance<amount)){
+        await session.abortTransaction();
+        res.json({
+            message:"insufficient balance , transaction failed"
+        })
+        return;
+    }
+
+    const receiver= await acountModel.findOne({userId:toId}).session(session);
+
+    if(!receiver){
+        await session.abortTransaction();
+        res.status(411).json({
+            message:"receiver not found "
+        })
+        return;
+    }
+
+    // perform the transaction
+
+    await acountModel.updateOne({userId:req.userId},{$inc :{balance: -amount}}).session(session);
+    await acountModel.updateOne({userId:toId},{$inc:{balance:amount}}).session(session);
+
+    await session.commitTransaction();
+    res.json({
+        message:`transaction of Rs ${amount} is successfull to ${receiver.username}` 
+    })
+})
 
 
 
