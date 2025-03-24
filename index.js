@@ -3,6 +3,13 @@ const mongoose= require("mongoose")
 const app=express();
 const {z}=require("zod");
 const cors= require("cors");
+
+app.use(cors({
+    origin: 'http://localhost:5173', // Allow requests from frontend
+    methods: 'GET,POST,PUT,DELETE',
+    allowedHeaders: 'Content-Type,Authorization'
+}));
+
 const bcrypt=require("bcrypt");
 const jwt= require("jsonwebtoken")
 const { userModel, acountModel } = require("./db");
@@ -50,7 +57,7 @@ const hashpassword= async (password)=>{
       return await bcrypt.hash(password,saltRound)
 };
 
-app.post('/api/v1/signup', async (req, res)=>{
+app.post('/api/v1/user/signup', async (req, res)=>{
    const validateData= signupSchema.safeParse(req.body);
   // it has data feild which has username and password and sucess filed which shows true on sucesss and an array of errors
    if(!validateData.success){
@@ -77,7 +84,7 @@ app.post('/api/v1/signup', async (req, res)=>{
    })
 });
 
-app.post('/api/v1/signin' , async (req,res)=>{
+app.post('/api/v1/user/signin' , async (req,res)=>{
     const validateData= signinSchema.safeParse(req.body);
 
     if(!validateData.success){
@@ -98,13 +105,15 @@ app.post('/api/v1/signin' , async (req,res)=>{
 
     const token= jwt.sign({userId:user._id}, JWT_SECRET, {expiresIn:"1h"});
     
-    await acountModel.create({
-        userId:user._id,
-        username:validateData.data.username,
-        balance: 1000,
-        
-    })
-
+    if(!user){
+        await acountModel.create({
+            userId:user._id,
+            username:validateData.data.username,
+            balance: 1000,
+            
+        })
+    
+    }
     res.status(200).json({
         message:"signed in suessfully",
         token:token
