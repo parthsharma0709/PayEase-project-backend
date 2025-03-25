@@ -43,12 +43,15 @@ const accountSchema= new mongoose.Schema({
         required:true,
         trim:true
     },
-    username:{
-        type:String,
-        required:true,
-        trim:true,
+   username : {
+        type:   String,
         unique:true,
-        ref:'User'
+        required:true,
+        trim:true
+    },
+    PIN :{
+        type:Number,
+        
     }
 
 })

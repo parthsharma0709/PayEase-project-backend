@@ -10,6 +10,9 @@ app.use(cors({
     allowedHeaders: 'Content-Type,Authorization'
 }));
 
+
+  
+
 const bcrypt=require("bcrypt");
 const jwt= require("jsonwebtoken")
 const { userModel, acountModel } = require("./db");
@@ -25,6 +28,7 @@ mongoose.connect(URL)
 const usernameSchema=z.string().min(3,"username must have at least 3 characters").max(20);
 const FirstNameSchema=z.string().min(3,"firstname must contain at least 3 characters").max(20);
 const LastNameSchema= z.string().min(3,"lasttname must contain at least 3 characters").max(20);
+const PINSchema= z.string().min(4).max(4);
 
 
 const passwordSchema=z.string().min(8).max(20)
@@ -49,7 +53,8 @@ const signupSchema= z.object({
 
 const signinSchema= z.object({
     username:usernameSchema,
-    password:passwordSchema
+    password:passwordSchema,
+    PIN:PINSchema
 })
 
 const hashpassword= async (password)=>{
@@ -78,6 +83,9 @@ app.post('/api/v1/user/signup', async (req, res)=>{
 
    })
 
+
+   
+
    res.status(201).json({
     message:"signed up sucessfully",
     data:validateData.data
@@ -94,26 +102,25 @@ app.post('/api/v1/user/signin' , async (req,res)=>{
         })
         return ;
     }
-
-    const user= await userModel.findOne({username: validateData.data.username});
-    if(!user || (!await bcrypt.compare(validateData.data.password,user.password))){
+    const { username, password, PIN } = validateData.data;
+    const user= await userModel.findOne({username: username});
+    if(!user || (!await bcrypt.compare(password,user.password))){
         res.status(400).json({
             message:"please enter correct username and password to continue "
         })
         return ;
     }
 
-    const token= jwt.sign({userId:user._id}, JWT_SECRET, {expiresIn:"1h"});
     
-    if(!user){
-        await acountModel.create({
-            userId:user._id,
-            username:validateData.data.username,
-            balance: 1000,
-            
-        })
-    
+
+    const token= jwt.sign({userId:user._id}, JWT_SECRET);
+    const existingAccount = await acountModel.findOne({ userId: user._id });
+    if (!existingAccount) {
+        await acountModel.create({ userId: user._id, balance: 1000 ,username:username , PIN:PIN});
     }
+  
+       
+    
     res.status(200).json({
         message:"signed in suessfully",
         token:token
@@ -151,9 +158,26 @@ app.put('/api/v1/user/updateUser',userAuthentication, async  (req,res)=>{
 
 })
 
-app.get('/api/v1/user/bulkUsers',  async (req,res)=>{
+app.get('/api/v1/user/getUser', userAuthentication, async (req,res)=>{
+    const userId= req.userId;
+    const user= await userModel.findById(userId);
+    res.json({
+        FirstName:user.FirstName
+    })
+})
+
+app.get('/api/v1/user/getPIN',userAuthentication, async (req,res)=>{
+
+    const userId= req.userId;
+    const response= await acountModel.findOne({userId});
+    res.json({message:"PIN has set successfully", PIN:response.PIN})
+})
+
+app.get('/api/v1/user/bulkUsers', userAuthentication, async (req,res)=>{
     const filter= req.query.filter || " " ;
+    const signedInUserId= req.userId;
     const users= await userModel.find({
+        _id: { $ne: signedInUserId },
         $or:[
             {FirstName :{'$regex':filter, '$options': 'i'}},
             {LastName:{'$regex':filter,'$options': 'i'}}
@@ -162,10 +186,11 @@ app.get('/api/v1/user/bulkUsers',  async (req,res)=>{
 
     res.json({
         message:"here are your users" ,
-        data:users.map(user =>({
+        user:users.map(user =>({
             username:user.username,
             FirstName:user.FirstName,
             LastName:user.LastName,
+            _id:user._id
         }))
     })
 })
@@ -175,7 +200,8 @@ app.get('/api/v1/user/getBalance', userAuthentication, async (req, res)=>{
    try{
     const account= await acountModel.findOne({userId:userId}); 
     res.json({
-        message: `your account balance is ${account.balance} rupees`
+        message: "your account balance is rupees",
+        balance:account.balance
        
     })
          }
@@ -193,7 +219,7 @@ app.post('/api/v1/user/moneyTransfer', userAuthentication, async (req,res)=>{
     // start a transaction
     session.startTransaction();
 
-    const {amount , toId } =req.body;
+    const {amount , toId} =req.body;
 
     const sender = await acountModel.findOne({userId:req.userId}).session(session);
     if(!sender || (sender.balance<amount)){
@@ -203,6 +229,7 @@ app.post('/api/v1/user/moneyTransfer', userAuthentication, async (req,res)=>{
         })
         return;
     }
+   
 
     const receiver= await acountModel.findOne({userId:toId}).session(session);
 
@@ -221,7 +248,7 @@ app.post('/api/v1/user/moneyTransfer', userAuthentication, async (req,res)=>{
 
     await session.commitTransaction();
     res.json({
-        message:`transaction of Rs ${amount} is successfull to ${receiver.username}` 
+        message:`transaction of Rs ${amount} is successfull` 
     })
 })
 
