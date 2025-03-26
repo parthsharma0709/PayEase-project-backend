@@ -116,7 +116,7 @@ app.post('/api/v1/user/signin' , async (req,res)=>{
     const token= jwt.sign({userId:user._id}, JWT_SECRET);
     const existingAccount = await acountModel.findOne({ userId: user._id });
     if (!existingAccount) {
-        await acountModel.create({ userId: user._id, balance: 1000 ,username:username , PIN:PIN});
+        await acountModel.create({ userId: user._id, balance: 10000 ,username:username , PIN:PIN});
     }
   
        
