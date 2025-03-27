@@ -28,7 +28,8 @@ mongoose.connect(URL)
 const usernameSchema=z.string().min(3,"username must have at least 3 characters").max(20);
 const FirstNameSchema=z.string().min(3,"firstname must contain at least 3 characters").max(20);
 const LastNameSchema= z.string().min(3,"lasttname must contain at least 3 characters").max(20);
-const PINSchema= z.string().min(4).max(4);
+const PINSchema = z.string().min(4).max(4)
+  
 
 
 const passwordSchema=z.string().min(8).max(20)
@@ -172,6 +173,34 @@ app.get('/api/v1/user/getPIN',userAuthentication, async (req,res)=>{
     const response= await acountModel.findOne({userId});
     res.json({message:"PIN has set successfully", PIN:response.PIN})
 })
+
+app.put('/api/v1/user/resetPIN', userAuthentication, async (req, res) => {
+    const userId = req.userId;
+   
+    const newPIN = PINSchema.safeParse(req.body.PIN);
+  
+    
+    if (!newPIN.success) {
+        console.log("Validation failed:", newPIN.error);
+      return res.status(400).json({ message: "Please enter a valid PIN." });
+    }
+  
+    try {
+        const updatedPIN = newPIN.data; 
+      
+      
+      await acountModel.updateOne(
+        { userId: userId },
+        { $set: { PIN: updatedPIN } }
+      );
+  
+      res.status(200).json({ message: "Your PIN has been updated successfully." });
+    } catch (error) {
+      console.error("Error updating PIN:", error);
+      res.status(500).json({ message: "An error occurred while updating the PIN." });
+    }
+  });
+  
 
 app.get('/api/v1/user/bulkUsers', userAuthentication, async (req,res)=>{
     const filter= req.query.filter || " " ;
