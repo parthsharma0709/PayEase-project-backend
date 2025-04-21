@@ -10,6 +10,10 @@ app.use(cors({
     allowedHeaders: 'Content-Type,Authorization'
 }));
 
+require("dotenv").config();
+mongoose.connect(process.env.MONGO_URL)
+.then(()=>{console.log("mongodb connected")})
+.catch((e)=>console.error("database connection error" , e))
 
   
 
@@ -19,11 +23,9 @@ const { userModel, acountModel } = require("./db");
 app.use(express.json());
 const JWT_SECRET= require("./config");
 const userAuthentication= require("./auth/usermiddleware.js");
-const URL= "mongodb+srv://05sharmaparth:wo169YrK6CdxJN33@cluster0.99okb.mongodb.net/Paytm-project";
 
-mongoose.connect(URL)
-.then(()=>{console.log("mongodb connected")})
-.catch((e)=>console.error("database connection error" , e))
+
+
 
 const usernameSchema=z.string().min(3,"username must have at least 3 characters").max(20);
 const FirstNameSchema=z.string().min(3,"firstname must contain at least 3 characters").max(20);

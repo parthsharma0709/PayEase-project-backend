@@ -51,6 +51,8 @@ const accountSchema= new mongoose.Schema({
     },
     PIN :{
         type:Number,
+        required:true,
+        unique:true
         
     }
 
